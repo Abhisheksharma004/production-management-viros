@@ -20,5 +20,9 @@
             <i class="fas fa-cog"></i>
             <span>Part Management</span>
         </a>
+        <a href="stages-management.php" class="nav-item <?php echo ($activePage == 'stages-management') ? 'active' : ''; ?>">
+            <i class="fas fa-tasks"></i>
+            <span>Stages Management</span>
+        </a>
     </nav>
 </div>
