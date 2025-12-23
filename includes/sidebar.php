@@ -24,5 +24,9 @@
             <i class="fas fa-tasks"></i>
             <span>Stages Management</span>
         </a>
+        <a href="production-report.php" class="nav-item <?php echo ($activePage == 'production-report') ? 'active' : ''; ?>">
+            <i class="fas fa-chart-line"></i>
+            <span>Production Report</span>
+        </a>
     </nav>
 </div>
