@@ -14,6 +14,167 @@ $current_user = $_SESSION['username'];
 $activePage = 'stages-management';
 $pageTitle = 'Stages Management';
 
+$message = '';
+$messageType = '';
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $conn = getSQLSrvConnection();
+    
+    if ($_POST['action'] === 'add' && isset($_POST['part_id']) && isset($_POST['stage_names'])) {
+        $partId = intval($_POST['part_id']);
+        $stageNames = $_POST['stage_names'];
+        
+        // Get part code
+        $sql = "SELECT part_code, part_name FROM parts WHERE id = ?";
+        $stmt = sqlsrv_query($conn, $sql, array($partId));
+        
+        if ($stmt && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $partCode = $row['part_code'];
+            $partName = $row['part_name'];
+            
+            // Sanitize part code for table name (remove special characters, spaces)
+            $tableName = 'part_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $partCode);
+            
+            // Check if table already exists
+            $checkSql = "SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?";
+            $checkStmt = sqlsrv_query($conn, $checkSql, array($tableName));
+            $checkRow = sqlsrv_fetch_array($checkStmt, SQLSRV_FETCH_ASSOC);
+            
+            if ($checkRow['cnt'] > 0) {
+                $_SESSION['message'] = "Table for part code '$partCode' already exists!";
+                $_SESSION['messageType'] = 'error';
+            } else {
+                // Build column definitions for each stage
+                $columnDefinitions = array();
+                foreach ($stageNames as $index => $stageName) {
+                    $columnName = 'stage_' . ($index + 1) . '_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($stageName));
+                    // Limit column name length to 128 characters
+                    $columnName = substr($columnName, 0, 128);
+                    $columnDefinitions[] = "[$columnName] NVARCHAR(255) NULL";
+                }
+                
+                // Create table with stages as columns
+                $createTableSql = "CREATE TABLE [$tableName] (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    part_id INT NOT NULL,
+                    " . implode(",\n                    ", $columnDefinitions) . ",
+                    created_at DATETIME2 DEFAULT GETDATE(),
+                    updated_at DATETIME2 DEFAULT GETDATE(),
+                    FOREIGN KEY (part_id) REFERENCES parts(id)
+                )";
+                
+                if (sqlsrv_query($conn, $createTableSql)) {
+                    // Store stage metadata
+                    $insertMetadataSql = "INSERT INTO stages_metadata (part_id, part_code, table_name, stage_names, created_at) 
+                                          VALUES (?, ?, ?, ?, GETDATE())";
+                    $stageNamesJson = json_encode($stageNames);
+                    $metadataStmt = sqlsrv_query($conn, $insertMetadataSql, array($partId, $partCode, $tableName, $stageNamesJson));
+                    
+                    $_SESSION['message'] = "Table '$tableName' created successfully with " . count($stageNames) . " stage columns!";
+                    $_SESSION['messageType'] = 'success';
+                } else {
+                    $_SESSION['message'] = "Error creating table: " . print_r(sqlsrv_errors(), true);
+                    $_SESSION['messageType'] = 'error';
+                }
+            }
+            sqlsrv_free_stmt($stmt);
+        }
+    } elseif ($_POST['action'] === 'update' && isset($_POST['metadata_id']) && isset($_POST['stage_names'])) {
+        $metadataId = intval($_POST['metadata_id']);
+        $newStageNames = $_POST['stage_names'];
+        
+        // Get current metadata
+        $sql = "SELECT * FROM stages_metadata WHERE id = ?";
+        $stmt = sqlsrv_query($conn, $sql, array($metadataId));
+        
+        if ($stmt && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $oldTableName = $row['table_name'];
+            $partId = $row['part_id'];
+            $partCode = $row['part_code'];
+            $oldStageNames = json_decode($row['stage_names'], true);
+            
+            // Create new table name (same as old)
+            $newTableName = $oldTableName;
+            
+            // Build new column definitions
+            $columnDefinitions = array();
+            foreach ($newStageNames as $index => $stageName) {
+                $columnName = 'stage_' . ($index + 1) . '_' . preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($stageName));
+                $columnName = substr($columnName, 0, 128);
+                $columnDefinitions[] = "[$columnName] NVARCHAR(255) NULL";
+            }
+            
+            // Drop old table and create new one
+            $dropSql = "DROP TABLE IF EXISTS [$oldTableName]";
+            if (sqlsrv_query($conn, $dropSql)) {
+                // Create new table with updated stages
+                $createTableSql = "CREATE TABLE [$newTableName] (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    part_id INT NOT NULL,
+                    " . implode(",\n                    ", $columnDefinitions) . ",
+                    created_at DATETIME2 DEFAULT GETDATE(),
+                    updated_at DATETIME2 DEFAULT GETDATE(),
+                    FOREIGN KEY (part_id) REFERENCES parts(id)
+                )";
+                
+                if (sqlsrv_query($conn, $createTableSql)) {
+                    // Update metadata
+                    $updateMetadataSql = "UPDATE stages_metadata SET stage_names = ? WHERE id = ?";
+                    $stageNamesJson = json_encode($newStageNames);
+                    sqlsrv_query($conn, $updateMetadataSql, array($stageNamesJson, $metadataId));
+                    
+                    $_SESSION['message'] = "Stages updated successfully! (Note: Previous data was cleared)";
+                    $_SESSION['messageType'] = 'success';
+                } else {
+                    $_SESSION['message'] = "Error creating updated table!";
+                    $_SESSION['messageType'] = 'error';
+                }
+            } else {
+                $_SESSION['message'] = "Error dropping old table!";
+                $_SESSION['messageType'] = 'error';
+            }
+            sqlsrv_free_stmt($stmt);
+        }
+    } elseif ($_POST['action'] === 'delete' && isset($_POST['metadata_id'])) {
+        $metadataId = intval($_POST['metadata_id']);
+        
+        // Get table name
+        $sql = "SELECT table_name FROM stages_metadata WHERE id = ?";
+        $stmt = sqlsrv_query($conn, $sql, array($metadataId));
+        
+        if ($stmt && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $tableName = $row['table_name'];
+            
+            // Drop the table
+            $dropSql = "DROP TABLE IF EXISTS [$tableName]";
+            if (sqlsrv_query($conn, $dropSql)) {
+                // Delete metadata
+                $deleteSql = "DELETE FROM stages_metadata WHERE id = ?";
+                sqlsrv_query($conn, $deleteSql, array($metadataId));
+                
+                $_SESSION['message'] = "Table '$tableName' deleted successfully!";
+                $_SESSION['messageType'] = 'success';
+            } else {
+                $_SESSION['message'] = "Error deleting table!";
+                $_SESSION['messageType'] = 'error';
+            }
+            sqlsrv_free_stmt($stmt);
+        }
+    }
+    
+    header("Location: stages-management.php");
+    exit();
+}
+
+// Display session messages
+if (isset($_SESSION['message'])) {
+    $message = $_SESSION['message'];
+    $messageType = $_SESSION['messageType'];
+    unset($_SESSION['message']);
+    unset($_SESSION['messageType']);
+}
+
 // Fetch all parts for dropdown
 $parts = [];
 try {
@@ -33,8 +194,27 @@ try {
     // Handle error
 }
 
-// Sample data for UI display (no backend functionality)
-$stages = [];
+// Fetch all stages metadata
+$stagesMetadata = [];
+try {
+    $conn = getSQLSrvConnection();
+    if ($conn !== false) {
+        $sql = "SELECT sm.*, p.part_code, p.part_name 
+                FROM stages_metadata sm 
+                JOIN parts p ON sm.part_id = p.id 
+                ORDER BY sm.created_at DESC";
+        $stmt = sqlsrv_query($conn, $sql);
+        
+        if ($stmt !== false) {
+            while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                $stagesMetadata[] = $row;
+            }
+            sqlsrv_free_stmt($stmt);
+        }
+    }
+} catch (Exception $e) {
+    // Handle error
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,6 +224,7 @@ $stages = [];
     <title>Stages Management - Production Management System</title>
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/line-management.css">
+    <link rel="stylesheet" href="css/stages-management.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -55,6 +236,12 @@ $stages = [];
 
         <!-- Dashboard Content -->
         <div class="dashboard-container">
+            <?php if ($message): ?>
+                <div class="alert alert-<?php echo $messageType; ?>">
+                    <?php echo htmlspecialchars($message); ?>
+                </div>
+            <?php endif; ?>
+            
             <div class="page-header">
                 <div class="page-title">
                     <h2>Production Stages</h2>
@@ -67,7 +254,7 @@ $stages = [];
 
             <!-- Stages Table -->
             <div class="table-container">
-                <?php if (empty($stages)): ?>
+                <?php if (empty($stagesMetadata)): ?>
                     <div class="empty-state">
                         <i class="fas fa-tasks"></i>
                         <h3>No Stages Yet</h3>
@@ -81,23 +268,41 @@ $stages = [];
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Stage Name</th>
+                                <th>Part Code</th>
+                                <th>Part Name</th>
+                                <th>Table Name</th>
+                                <th>Stages</th>
                                 <th>Created At</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php $counter = 1; ?>
-                            <?php foreach ($stages as $stage): ?>
+                            <?php foreach ($stagesMetadata as $metadata): ?>
+                                <?php 
+                                    $stageNamesArray = json_decode($metadata['stage_names'], true);
+                                    $createdAt = $metadata['created_at'] instanceof DateTime ? 
+                                                 $metadata['created_at']->format('Y-m-d H:i') : 
+                                                 date('Y-m-d H:i', strtotime($metadata['created_at']));
+                                ?>
                                 <tr>
                                     <td><?php echo $counter++; ?></td>
-                                    <td class="line-name"><?php echo htmlspecialchars($stage['stage_name']); ?></td>
-                                    <td><?php echo isset($stage['created_at']) ? $stage['created_at']->format('Y-m-d H:i') : 'N/A'; ?></td>
+                                    <td class="line-code"><?php echo htmlspecialchars($metadata['part_code']); ?></td>
+                                    <td class="line-name"><?php echo htmlspecialchars($metadata['part_name']); ?></td>
+                                    <td class="line-code"><?php echo htmlspecialchars($metadata['table_name']); ?></td>
+                                    <td>
+                                        <div class="stages-list">
+                                            <?php foreach ($stageNamesArray as $index => $stageName): ?>
+                                                <span class="stage-badge"><?php echo ($index + 1) . '. ' . htmlspecialchars($stageName); ?></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </td>
+                                    <td><?php echo $createdAt; ?></td>
                                     <td class="action-buttons">
-                                        <button class="btn-edit" onclick='editStage(<?php echo json_encode($stage); ?>)' title="Edit">
+                                        <button class="btn-edit" onclick='openEditModal(<?php echo json_encode($metadata); ?>)' title="Edit" style="margin-right: 5px;">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn-delete" onclick="deleteStage(<?php echo $stage['id']; ?>, '<?php echo htmlspecialchars($stage['stage_name']); ?>')" title="Delete">
+                                        <button class="btn-delete" onclick="deleteStage(<?php echo $metadata['id']; ?>, '<?php echo htmlspecialchars($metadata['table_name']); ?>')" title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -119,8 +324,9 @@ $stages = [];
             </div>
             <form method="POST" id="stageForm">
                 <input type="hidden" name="action" id="formAction" value="add">
+                <input type="hidden" name="metadata_id" id="metadataId">
                 
-                <div class="form-group">
+                <div class="form-group" id="partSelectGroup">
                     <label for="partId">Select Part *</label>
                     <select id="partId" name="part_id" required>
                         <option value="">-- Select Part --</option>
@@ -130,6 +336,10 @@ $stages = [];
                             </option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+                
+                <div id="partInfoDisplay" style="display: none; padding: 15px; background: #f0f9ff; border-radius: 8px; margin-bottom: 15px; color: #0369a1;">
+                    <strong>Part:</strong> <span id="partInfoText"></span>
                 </div>
                 
                 <div class="stages-section">
@@ -162,12 +372,12 @@ $stages = [];
                 <button class="close-btn" onclick="closeDeleteModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete <strong id="deleteStageName"></strong>?</p>
-                <p class="warning-text">This action cannot be undone.</p>
+                <p>Are you sure you want to delete table <strong id="deleteTableName"></strong>?</p>
+                <p class="warning-text">This action will delete the table and all its data. This cannot be undone.</p>
             </div>
             <form method="POST" id="deleteForm">
                 <input type="hidden" name="action" value="delete">
-                <input type="hidden" name="stage_id" id="deleteStageId">
+                <input type="hidden" name="metadata_id" id="deleteMetadataId">
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
                     <button type="submit" class="btn-danger">Delete</button>
@@ -178,77 +388,45 @@ $stages = [];
 
     <?php include 'includes/scripts.php'; ?>
     
-    <style>
-        .stages-section {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f8fafc;
-            border-radius: 8px;
-        }
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .section-header label {
-            font-weight: 600;
-            font-size: 16px;
-            color: #1e293b;
-            margin: 0;
-        }
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 13px;
-        }
-        .stage-row {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-            align-items: flex-end;
-        }
-        .stage-row .form-group {
-            flex: 1;
-            margin-bottom: 0;
-        }
-        .stage-row .btn-remove {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            height: 42px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .stage-row .btn-remove:hover {
-            background: #dc2626;
-        }
-        .stage-row-number {
-            width: 40px;
-            text-align: center;
-            font-weight: 600;
-            color: #64748b;
-            line-height: 42px;
-        }
-    </style>
-    
     <script>
         let stageCounter = 0;
-        let stagesData = [];
-        let stageIdCounter = 1;
 
         // Modal functions
         function openAddModal() {
             document.getElementById('modalTitle').textContent = 'Add Stages for Part';
             document.getElementById('formAction').value = 'add';
             document.getElementById('submitBtn').textContent = 'Save Stages';
+            document.getElementById('metadataId').value = '';
             document.getElementById('stageForm').reset();
             document.getElementById('stagesContainer').innerHTML = '';
+            document.getElementById('partSelectGroup').style.display = 'block';
+            document.getElementById('partInfoDisplay').style.display = 'none';
+            document.getElementById('partId').required = true;
             stageCounter = 0;
-            addStageRow(); // Add first stage row by default
+            addStageRow();
+            document.getElementById('stageModal').style.display = 'flex';
+        }
+        
+        function openEditModal(metadata) {
+            document.getElementById('modalTitle').textContent = 'Update Stages for ' + metadata.part_code;
+            document.getElementById('formAction').value = 'update';
+            document.getElementById('submitBtn').textContent = 'Update Stages';
+            document.getElementById('metadataId').value = metadata.id;
+            document.getElementById('stagesContainer').innerHTML = '';
+            document.getElementById('partSelectGroup').style.display = 'none';
+            document.getElementById('partInfoDisplay').style.display = 'block';
+            document.getElementById('partInfoText').textContent = metadata.part_code + ' - ' + metadata.part_name;
+            document.getElementById('partId').required = false;
+            
+            // Parse and populate existing stages
+            const stageNames = JSON.parse(metadata.stage_names);
+            stageCounter = 0;
+            stageNames.forEach(stageName => {
+                addStageRow();
+                const inputs = document.querySelectorAll('input[name="stage_names[]"]');
+                inputs[inputs.length - 1].value = stageName;
+            });
+            
             document.getElementById('stageModal').style.display = 'flex';
         }
         
@@ -288,137 +466,18 @@ $stages = [];
             });
         }
         
-        // Handle form submission - wait for DOM to load
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('stageForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const partId = document.getElementById('partId').value;
-                const partText = document.getElementById('partId').options[document.getElementById('partId').selectedIndex].text;
-                
-                const stageNames = document.getElementsByName('stage_names[]');
-                
-                // Add all stages to the data array
-                for (let i = 0; i < stageNames.length; i++) {
-                    const newStage = {
-                        id: stageIdCounter++,
-                        part_id: partId,
-                        part_text: partText,
-                        stage_name: stageNames[i].value,
-                        status: 'Active',
-                        created_at: new Date()
-                    };
-                    stagesData.push(newStage);
-                }
-                
-                renderStagesTable();
-                closeModal();
-            });
-            
-            // Handle delete confirmation
-            document.getElementById('deleteForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const stageId = document.getElementById('deleteStageId').value;
-                stagesData = stagesData.filter(s => s.id != stageId);
-                
-                renderStagesTable();
-                closeDeleteModal();
-            });
-            
-            // Search functionality
-            document.getElementById('searchInput').addEventListener('keyup', function() {
-                const searchTerm = this.value.toLowerCase();
-                const tableRows = document.querySelectorAll('.data-table tbody tr');
-                
-                tableRows.forEach(row => {
-                    const partText = row.cells[1].textContent.toLowerCase();
-                    const stageName = row.cells[2].textContent.toLowerCase();
-                    
-                    if (partText.includes(searchTerm) || stageName.includes(searchTerm)) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
-        });
-
         function closeModal() {
             document.getElementById('stageModal').style.display = 'none';
         }
 
-        function deleteStage(id, name) {
-            document.getElementById('deleteStageId').value = id;
-            document.getElementById('deleteStageName').textContent = name;
+        function deleteStage(metadataId, tableName) {
+            document.getElementById('deleteMetadataId').value = metadataId;
+            document.getElementById('deleteTableName').textContent = tableName;
             document.getElementById('deleteModal').style.display = 'flex';
         }
 
         function closeDeleteModal() {
             document.getElementById('deleteModal').style.display = 'none';
-        }
-        
-        // Render stages table
-        function renderStagesTable() {
-            const container = document.querySelector('.table-container');
-            
-            if (stagesData.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-tasks"></i>
-                        <h3>No Stages Yet</h3>
-                        <p>Get started by adding your first production stages</p>
-                        <button class="btn-primary" onclick="openAddModal()">
-                            <i class="fas fa-plus"></i> Add Stages
-                        </button>
-                    </div>
-                `;
-            } else {
-                let tableHTML = `
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Part</th>
-                                <th>Stage Name</th>
-                                <th>Created At</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                
-                stagesData.forEach((stage, index) => {
-                    const createdDate = new Date(stage.created_at).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    
-                    tableHTML += `
-                        <tr>
-                            <td>${index + 1}</td>
-                            <td class="line-code">${stage.part_text}</td>
-                            <td class="line-name">${stage.stage_name}</td>
-                            <td>${createdDate}</td>
-                            <td class="action-buttons">
-                                <button class="btn-delete" onclick="deleteStage(${stage.id}, '${stage.stage_name}')" title="Delete">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                
-                tableHTML += `
-                        </tbody>
-                    </table>
-                `;
-                
-                container.innerHTML = tableHTML;
-            }
         }
 
         // Close modals on outside click

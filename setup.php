@@ -90,6 +90,23 @@ END
 ";
 executeQuery($conn, $sql, "Create Parts Table");
 
+// 5. Create Stages Metadata Table
+$sql = "
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='stages_metadata' AND xtype='U')
+BEGIN
+    CREATE TABLE stages_metadata (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        part_id INT NOT NULL,
+        part_code NVARCHAR(50) NOT NULL,
+        table_name NVARCHAR(255) NOT NULL UNIQUE,
+        stage_names NVARCHAR(MAX) NOT NULL,
+        created_at DATETIME2 DEFAULT GETDATE(),
+        FOREIGN KEY (part_id) REFERENCES parts(id) ON DELETE CASCADE
+    )
+END
+";
+executeQuery($conn, $sql, "Create Stages Metadata Table");
+
 // Close connection
 closeConnection($conn);
 ?>
