@@ -57,6 +57,23 @@ END
 ";
 executeQuery($conn, $sql, "Insert Default Admin User");
 
+// 3. Create Lines Table
+$sql = "
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='lines' AND xtype='U')
+BEGIN
+    CREATE TABLE lines (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        line_name NVARCHAR(100) NOT NULL,
+        user_email NVARCHAR(100) NOT NULL UNIQUE,
+        password NVARCHAR(255) NOT NULL,
+        status NVARCHAR(20) DEFAULT 'Active',
+        created_at DATETIME DEFAULT GETDATE(),
+        updated_at DATETIME DEFAULT GETDATE()
+    )
+END
+";
+executeQuery($conn, $sql, "Create Lines Table");
+
 // Close connection
 closeConnection($conn);
 ?>

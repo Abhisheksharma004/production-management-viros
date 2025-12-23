@@ -25,44 +25,58 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($_POST['action'] == 'add') {
             // Add new line
             $lineName = trim($_POST['line_name']);
-            $lineCode = trim($_POST['line_code']);
-            $location = trim($_POST['location']);
-            $capacity = (int)$_POST['capacity'];
+            $lineCode = trim($_POST['user_email']);
             $status = $_POST['status'];
+            $password = trim($_POST['password']);
+            $confirmPassword = trim($_POST['confirm_password']);
             
-            $sql = "INSERT INTO lines (line_name, line_code, location, capacity, status) VALUES (?, ?, ?, ?, ?)";
-            $params = [$lineName, $lineCode, $location, $capacity, $status];
-            $stmt = sqlsrv_query($conn, $sql, $params);
-            
-            if ($stmt) {
-                $message = "Line added successfully!";
-                $messageType = "success";
-                sqlsrv_free_stmt($stmt);
+            if ($password !== $confirmPassword) {
+                $_SESSION['message'] = "Passwords do not match!";
+                $_SESSION['messageType'] = "error";
             } else {
-                $message = "Error adding line.";
-                $messageType = "error";
+                $sql = "INSERT INTO lines (line_name, user_email, password, status) VALUES (?, ?, ?, ?)";
+                $params = [$lineName, $lineCode, $password, $status];
+                $stmt = sqlsrv_query($conn, $sql, $params);
+                
+                if ($stmt) {
+                    $_SESSION['message'] = "Line added successfully!";
+                    $_SESSION['messageType'] = "success";
+                    sqlsrv_free_stmt($stmt);
+                } else {
+                    $_SESSION['message'] = "Error adding line.";
+                    $_SESSION['messageType'] = "error";
+                }
             }
+            header("Location: line-management.php");
+            exit();
         } elseif ($_POST['action'] == 'edit') {
             // Update existing line
             $lineId = (int)$_POST['line_id'];
             $lineName = trim($_POST['line_name']);
-            $lineCode = trim($_POST['line_code']);
-            $location = trim($_POST['location']);
-            $capacity = (int)$_POST['capacity'];
+            $lineCode = trim($_POST['user_email']);
             $status = $_POST['status'];
+            $password = trim($_POST['password']);
+            $confirmPassword = trim($_POST['confirm_password']);
             
-            $sql = "UPDATE lines SET line_name = ?, line_code = ?, location = ?, capacity = ?, status = ?, updated_at = GETDATE() WHERE id = ?";
-            $params = [$lineName, $lineCode, $location, $capacity, $status, $lineId];
-            $stmt = sqlsrv_query($conn, $sql, $params);
-            
-            if ($stmt) {
-                $message = "Line updated successfully!";
-                $messageType = "success";
-                sqlsrv_free_stmt($stmt);
+            if ($password !== $confirmPassword) {
+                $_SESSION['message'] = "Passwords do not match!";
+                $_SESSION['messageType'] = "error";
             } else {
-                $message = "Error updating line.";
-                $messageType = "error";
+                $sql = "UPDATE lines SET line_name = ?, user_email = ?, password = ?, status = ?, updated_at = GETDATE() WHERE id = ?";
+                $params = [$lineName, $lineCode, $password, $status, $lineId];
+                $stmt = sqlsrv_query($conn, $sql, $params);
+                
+                if ($stmt) {
+                    $_SESSION['message'] = "Line updated successfully!";
+                    $_SESSION['messageType'] = "success";
+                    sqlsrv_free_stmt($stmt);
+                } else {
+                    $_SESSION['message'] = "Error updating line.";
+                    $_SESSION['messageType'] = "error";
+                }
             }
+            header("Location: line-management.php");
+            exit();
         } elseif ($_POST['action'] == 'delete') {
             // Delete line
             $lineId = (int)$_POST['line_id'];
@@ -72,15 +86,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt = sqlsrv_query($conn, $sql, $params);
             
             if ($stmt) {
-                $message = "Line deleted successfully!";
-                $messageType = "success";
+                $_SESSION['message'] = "Line deleted successfully!";
+                $_SESSION['messageType'] = "success";
                 sqlsrv_free_stmt($stmt);
             } else {
-                $message = "Error deleting line.";
-                $messageType = "error";
+                $_SESSION['message'] = "Error deleting line.";
+                $_SESSION['messageType'] = "error";
             }
+            header("Location: line-management.php");
+            exit();
         }
     }
+}
+
+// Get message from session
+if (isset($_SESSION['message'])) {
+    $message = $_SESSION['message'];
+    $messageType = $_SESSION['messageType'];
+    unset($_SESSION['message']);
+    unset($_SESSION['messageType']);
 }
 
 // Fetch all lines
@@ -88,7 +112,7 @@ $lines = [];
 try {
     $conn = getSQLSrvConnection();
     if ($conn !== false) {
-        $sql = "SELECT * FROM lines ORDER BY line_code";
+        $sql = "SELECT * FROM lines ORDER BY user_email";
         $stmt = sqlsrv_query($conn, $sql);
         
         if ($stmt !== false) {
@@ -137,8 +161,8 @@ try {
                 </button>
             </div>
 
-            <!-- Lines Grid -->
-            <div class="lines-grid">
+            <!-- Lines Table -->
+            <div class="table-container">
                 <?php if (empty($lines)): ?>
                     <div class="empty-state">
                         <i class="fas fa-layer-group"></i>
@@ -149,35 +173,42 @@ try {
                         </button>
                     </div>
                 <?php else: ?>
-                    <?php foreach ($lines as $line): ?>
-                        <div class="line-card">
-                            <div class="line-header">
-                                <div class="line-code"><?php echo htmlspecialchars($line['line_code']); ?></div>
-                                <span class="status-badge <?php echo strtolower($line['status']); ?>">
-                                    <?php echo htmlspecialchars($line['status']); ?>
-                                </span>
-                            </div>
-                            <h3 class="line-name"><?php echo htmlspecialchars($line['line_name']); ?></h3>
-                            <div class="line-info">
-                                <div class="info-item">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                    <span><?php echo htmlspecialchars($line['location']); ?></span>
-                                </div>
-                                <div class="info-item">
-                                    <i class="fas fa-tachometer-alt"></i>
-                                    <span>Capacity: <?php echo $line['capacity']; ?> units/day</span>
-                                </div>
-                            </div>
-                            <div class="line-actions">
-                                <button class="btn-edit" onclick='editLine(<?php echo json_encode($line); ?>)'>
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
-                                <button class="btn-delete" onclick="deleteLine(<?php echo $line['id']; ?>, '<?php echo htmlspecialchars($line['line_name']); ?>')">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Line Name</th>
+                                <th>User ID / Email</th>
+                                <th>Status</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php $counter = 1; ?>
+                            <?php foreach ($lines as $line): ?>
+                                <tr>
+                                    <td><?php echo $counter++; ?></td>
+                                    <td class="line-name"><?php echo htmlspecialchars($line['line_name']); ?></td>
+                                    <td class="line-code"><?php echo htmlspecialchars($line['user_email']); ?></td>
+                                    <td>
+                                        <span class="status-badge <?php echo strtolower($line['status']); ?>">
+                                            <?php echo htmlspecialchars($line['status']); ?>
+                                        </span>
+                                    </td>
+                                    <td><?php echo isset($line['created_at']) ? $line['created_at']->format('Y-m-d H:i') : 'N/A'; ?></td>
+                                    <td class="action-buttons">
+                                        <button class="btn-edit" onclick='editLine(<?php echo json_encode($line); ?>)' title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn-delete" onclick="deleteLine(<?php echo $line['id']; ?>, '<?php echo htmlspecialchars($line['line_name']); ?>')" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 <?php endif; ?>
             </div>
         </div>
@@ -200,18 +231,28 @@ try {
                 </div>
                 
                 <div class="form-group">
-                    <label for="lineCode">Line Code *</label>
-                    <input type="text" id="lineCode" name="line_code" required>
+                    <label for="lineCode">User ID or Email ID *</label>
+                    <input type="text" id="lineCode" name="user_email" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="location">Location *</label>
-                    <input type="text" id="location" name="location" required>
+                    <label for="password">Password *</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="password" name="password" required>
+                        <span class="toggle-password" onclick="togglePassword('password', this)">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="capacity">Capacity (units/day) *</label>
-                    <input type="number" id="capacity" name="capacity" min="1" required>
+                    <label for="confirmPassword">Confirm Password *</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="confirmPassword" name="confirm_password" required>
+                        <span class="toggle-password" onclick="togglePassword('confirmPassword', this)">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -271,9 +312,9 @@ try {
             document.getElementById('submitBtn').textContent = 'Update Line';
             document.getElementById('lineId').value = line.id;
             document.getElementById('lineName').value = line.line_name;
-            document.getElementById('lineCode').value = line.line_code;
-            document.getElementById('location').value = line.location;
-            document.getElementById('capacity').value = line.capacity;
+            document.getElementById('lineCode').value = line.user_email;
+            document.getElementById('password').value = line.password || '';
+            document.getElementById('confirmPassword').value = line.password || '';
             document.getElementById('status').value = line.status;
             document.getElementById('lineModal').style.display = 'flex';
         }
@@ -307,20 +348,35 @@ try {
         // Search functionality
         document.getElementById('searchInput').addEventListener('keyup', function() {
             const searchTerm = this.value.toLowerCase();
-            const lineCards = document.querySelectorAll('.line-card');
+            const tableRows = document.querySelectorAll('.data-table tbody tr');
             
-            lineCards.forEach(card => {
-                const lineName = card.querySelector('.line-name').textContent.toLowerCase();
-                const lineCode = card.querySelector('.line-code').textContent.toLowerCase();
-                const location = card.querySelector('.info-item span').textContent.toLowerCase();
+            tableRows.forEach(row => {
+                const lineName = row.querySelector('.line-name').textContent.toLowerCase();
+                const userEmail = row.querySelector('.line-code').textContent.toLowerCase();
                 
-                if (lineName.includes(searchTerm) || lineCode.includes(searchTerm) || location.includes(searchTerm)) {
-                    card.style.display = 'block';
+                if (lineName.includes(searchTerm) || userEmail.includes(searchTerm)) {
+                    row.style.display = '';
                 } else {
-                    card.style.display = 'none';
+                    row.style.display = 'none';
                 }
             });
         });
+
+        // Toggle password visibility
+        function togglePassword(inputId, icon) {
+            const input = document.getElementById(inputId);
+            const iconElement = icon.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                iconElement.classList.remove('fa-eye');
+                iconElement.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                iconElement.classList.remove('fa-eye-slash');
+                iconElement.classList.add('fa-eye');
+            }
+        }
 
         // Auto-hide alert messages
         setTimeout(() => {
