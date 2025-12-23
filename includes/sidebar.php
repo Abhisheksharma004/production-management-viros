@@ -16,5 +16,9 @@
             <i class="fas fa-layer-group"></i>
             <span>Line Management</span>
         </a>
+        <a href="part-management.php" class="nav-item <?php echo ($activePage == 'part-management') ? 'active' : ''; ?>">
+            <i class="fas fa-cog"></i>
+            <span>Part Management</span>
+        </a>
     </nav>
 </div>

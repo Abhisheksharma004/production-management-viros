@@ -74,6 +74,22 @@ END
 ";
 executeQuery($conn, $sql, "Create Lines Table");
 
+// 4. Create Parts Table
+$sql = "
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='parts' AND xtype='U')
+BEGIN
+    CREATE TABLE parts (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        part_name NVARCHAR(200) NOT NULL,
+        part_code NVARCHAR(100) NOT NULL UNIQUE,
+        status NVARCHAR(20) DEFAULT 'Active',
+        created_at DATETIME DEFAULT GETDATE(),
+        updated_at DATETIME DEFAULT GETDATE()
+    )
+END
+";
+executeQuery($conn, $sql, "Create Parts Table");
+
 // Close connection
 closeConnection($conn);
 ?>
