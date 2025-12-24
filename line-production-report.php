@@ -150,6 +150,26 @@ try {
         .sidebar .logo h2 {
             font-size: 18px;
         }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-complete {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-incomplete {
+            background-color: #fff3cd;
+            color: #856404;
+        }
     </style>
 </head>
 <body>
@@ -350,16 +370,73 @@ try {
         }
 
         function loadProductionData(tableName, stageNames, dateFrom, dateTo) {
-            // For now, show empty table
-            // In production, this will fetch actual data via AJAX
+            const partSelect = document.getElementById('filterPart');
+            const partId = partSelect.value;
+
+            // Show loading state
             document.getElementById('tableBody').innerHTML = 
-                '<tr><td colspan="100" style="text-align: center; padding: 40px; color: #64748b;">No production data available</td></tr>';
-            
-            // Update summary
-            document.getElementById('totalItems').textContent = '0';
-            document.getElementById('completedItems').textContent = '0';
-            document.getElementById('inProgressItems').textContent = '0';
-            document.getElementById('completionRate').textContent = '0%';
+                '<tr><td colspan="100" style="text-align: center; padding: 40px; color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>';
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('part_id', partId);
+            formData.append('table_name', tableName);
+            formData.append('stage_names', JSON.stringify(stageNames));
+            formData.append('date_from', dateFrom || '');
+            formData.append('date_to', dateTo || '');
+
+            // Fetch data via AJAX
+            fetch('get-production-data.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    document.getElementById('tableBody').innerHTML = 
+                        `<tr><td colspan="100" style="text-align: center; padding: 40px; color: #ef4444;">Error: ${result.error}</td></tr>`;
+                    return;
+                }
+
+                if (result.success && result.data.length > 0) {
+                    let tableHTML = '';
+                    result.data.forEach((row, index) => {
+                        tableHTML += '<tr>';
+                        tableHTML += `<td>${index + 1}</td>`;
+                        tableHTML += `<td>${row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'}</td>`;
+                        
+                        row.stages.forEach(stageValue => {
+                            tableHTML += `<td>${stageValue || '-'}</td>`;
+                        });
+                        
+                        const statusClass = row.status === 'Complete' ? 'status-complete' : 'status-incomplete';
+                        tableHTML += `<td><span class="status-badge ${statusClass}">${row.status}</span></td>`;
+                        tableHTML += '</tr>';
+                    });
+                    
+                    document.getElementById('tableBody').innerHTML = tableHTML;
+                    
+                    // Update summary
+                    document.getElementById('totalItems').textContent = result.summary.total;
+                    document.getElementById('completedItems').textContent = result.summary.completed;
+                    document.getElementById('inProgressItems').textContent = result.summary.inProgress;
+                    document.getElementById('completionRate').textContent = result.summary.completionRate + '%';
+                } else {
+                    document.getElementById('tableBody').innerHTML = 
+                        '<tr><td colspan="100" style="text-align: center; padding: 40px; color: #64748b;">No production data available</td></tr>';
+                    
+                    // Reset summary
+                    document.getElementById('totalItems').textContent = '0';
+                    document.getElementById('completedItems').textContent = '0';
+                    document.getElementById('inProgressItems').textContent = '0';
+                    document.getElementById('completionRate').textContent = '0%';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('tableBody').innerHTML = 
+                    '<tr><td colspan="100" style="text-align: center; padding: 40px; color: #ef4444;">Failed to load data. Please try again.</td></tr>';
+            });
         }
 
         function exportToExcel() {
