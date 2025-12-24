@@ -233,528 +233,7 @@ if (isset($_SESSION['message'])) {
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/line-management.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* Custom styling for material in page */
-        .header {
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            padding: 12px 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        
-        .header-left .page-title h1 {
-            color: white;
-            font-size: 22px;
-            font-weight: 600;
-            margin: 0 0 3px 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .header-left .page-title p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 13px;
-            margin: 0;
-        }
-        
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 6px 12px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .user-avatar {
-            font-size: 32px;
-            color: white;
-            display: flex;
-            align-items: center;
-        }
-        
-        .user-details {
-            display: flex;
-            flex-direction: column;
-            gap: 1px;
-        }
-        
-        .user-name {
-            color: white;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .user-role {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 11px;
-        }
-        
-        .logout {
-            color: white;
-            font-size: 20px;
-            padding: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            transition: all 0.3s;
-            text-decoration: none;
-        }
-        
-        .logout:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.05);
-        }
-
-        .sidebar .logo {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 25px 20px;
-        }
-
-        .sidebar .logo h2 {
-            font-size: 18px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .recent-materials-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin-top: 0;
-        }
-
-        .recent-materials-table th,
-        .recent-materials-table td {
-            padding: 14px 16px;
-            text-align: left;
-        }
-
-        .recent-materials-table thead {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        .recent-materials-table th {
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            color: white;
-            font-weight: 600;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border: none;
-        }
-
-        .recent-materials-table th:first-child {
-            border-radius: 8px 0 0 0;
-        }
-
-        .recent-materials-table th:last-child {
-            border-radius: 0 8px 0 0;
-        }
-
-        .recent-materials-table tbody tr {
-            background: white;
-            transition: all 0.2s;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .recent-materials-table tbody tr:hover {
-            background: #f8fafc;
-            transform: scale(1.01);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        .recent-materials-table tbody tr:last-child td:first-child {
-            border-radius: 0 0 0 8px;
-        }
-
-        .recent-materials-table tbody tr:last-child td:last-child {
-            border-radius: 0 0 8px 0;
-        }
-
-        .recent-materials-table td {
-            color: #1e293b;
-            font-size: 14px;
-        }
-
-        .table-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
-            margin-top: 20px;
-        }
-
-        .table-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .table-header h3 {
-            margin: 0 0 4px 0;
-            font-size: 18px;
-            color: #1e293b;
-            font-weight: 600;
-        }
-
-        .table-header p {
-            margin: 0;
-            font-size: 13px;
-            color: #64748b;
-        }
-
-        .table-container {
-            overflow-x: auto;
-        }
-
-        .part-code {
-            font-weight: 600;
-            color: #3b82f6;
-            font-family: monospace;
-            font-size: 13px;
-        }
-
-        .batch-badge {
-            background: #f1f5f9;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 600;
-            color: #475569;
-            font-size: 12px;
-            font-family: monospace;
-        }
-
-        .quantity-cell {
-            font-weight: 600;
-            color: #059669;
-        }
-
-        .quantity-unit {
-            font-size: 12px;
-            color: #64748b;
-            font-weight: 400;
-        }
-
-        .date-cell {
-            color: #64748b;
-            font-size: 13px;
-        }
-
-        .date-cell .date-day {
-            display: block;
-            color: #1e293b;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #64748b;
-        }
-
-        .empty-state i {
-            font-size: 48px;
-            color: #cbd5e1;
-            margin-bottom: 16px;
-        }
-
-        .empty-state h3 {
-            margin: 0 0 8px 0;
-            color: #475569;
-            font-size: 18px;
-        }
-
-        .empty-state p {
-            margin: 0;
-            font-size: 14px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-        }
-
-        .btn-action {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .btn-view {
-            background: #3b82f6;
-            color: white;
-        }
-
-        .btn-view:hover {
-            background: #2563eb;
-            transform: translateY(-1px);
-        }
-
-        .btn-update {
-            background: #10b981;
-            color: white;
-        }
-
-        .btn-update:hover {
-            background: #059669;
-            transform: translateY(-1px);
-        }
-
-        .btn-close-production {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-close-production:hover {
-            background: #dc2626;
-            transform: translateY(-1px);
-        }
-
-        .btn-delete {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-delete:hover {
-            background: #dc2626;
-            transform: translateY(-1px);
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .badge-success {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .badge-open {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .badge-closed {
-            background: #f3f4f6;
-            color: #4b5563;
-        }
-
-        /* Error Panel Styles */
-        .error-panel {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #fee2e2;
-            border-top: 3px solid #ef4444;
-            box-shadow: 0 -4px 12px rgba(239, 68, 68, 0.15);
-            z-index: 9999;
-            animation: slideUp 0.3s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(100%);
-            }
-            to {
-                transform: translateY(0);
-            }
-        }
-
-        .error-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 15px 30px;
-        }
-
-        .error-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #991b1b;
-            font-weight: 700;
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-
-        .error-header i {
-            font-size: 20px;
-        }
-
-        .error-close {
-            margin-left: auto;
-            background: none;
-            border: none;
-            font-size: 28px;
-            color: #991b1b;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .error-close:hover {
-            background: #fca5a5;
-        }
-
-        .error-message {
-            background: white;
-            padding: 12px;
-            border-radius: 6px;
-            color: #1e293b;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            border-left: 4px solid #ef4444;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .error-timestamp {
-            margin-top: 8px;
-            font-size: 11px;
-            color: #991b1b;
-            font-style: italic;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-        }
-
-        .modal.show {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background-color: #fff;
-            margin: auto;
-            padding: 0;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 900px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            animation: modalSlideIn 0.3s ease-out;
-        }
-
-        @keyframes modalSlideIn {
-            from {
-                transform: translateY(-50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .modal-header {
-            padding: 20px 25px;
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            color: white;
-            border-radius: 12px 12px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .modal-close {
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-
-        .modal-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: rotate(90deg);
-        }
-
-        .modal-body {
-            padding: 25px;
-        }
-
-        .btn-add-material {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-
-        .btn-add-material:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-        }
-    </style>
+    <link rel="stylesheet" href="css/material-in.css">
 </head>
 <body>
     <div class="sidebar">
@@ -818,9 +297,53 @@ if (isset($_SESSION['message'])) {
                     <h2>Material In Records</h2>
                     <p>View and manage incoming materials</p>
                 </div>
-                <button class="btn-add-material" onclick="openModal()">
-                    <i class="fas fa-plus-circle"></i> Add New Material
-                </button>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn-export-excel" onclick="exportToExcel()">
+                        <i class="fas fa-file-excel"></i> Export to Excel
+                    </button>
+                    <button class="btn-add-material" onclick="openModal()">
+                        <i class="fas fa-plus-circle"></i> Add New Material
+                    </button>
+                </div>
+            </div>
+
+            <!-- Date Filter Section -->
+            <div class="filter-section">
+                <div class="filter-container">
+                    <div class="filter-title">
+                        <i class="fas fa-filter"></i>
+                        <span>Filter Records</span>
+                    </div>
+                    <div class="filter-controls">
+                        <div class="filter-group">
+                            <label for="filter_date_from">From Date</label>
+                            <input type="date" id="filter_date_from" class="filter-input">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter_date_to">To Date</label>
+                            <input type="date" id="filter_date_to" class="filter-input">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter_part_code">Part Code</label>
+                            <input type="text" id="filter_part_code" class="filter-input" placeholder="Enter part code">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter_batch_number">Batch Number</label>
+                            <input type="text" id="filter_batch_number" class="filter-input" placeholder="Enter batch number">
+                        </div>
+                        <div class="filter-actions">
+                            <button class="btn-filter" onclick="applyFilter()">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                            <button class="btn-reset-filter" onclick="resetFilter()">
+                                <i class="fas fa-redo"></i> Reset
+                            </button>
+                            <button class="btn-export-excel" onclick="exportToExcel()" style="margin-left: 10px;">
+                                <i class="fas fa-file-excel"></i> Export Filtered Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Modal Form -->
@@ -1062,9 +585,6 @@ if (isset($_SESSION['message'])) {
                                 </td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn-action btn-view" onclick="viewMaterial(<?php echo $material['id']; ?>)" title="View Details">
-                                            <i class="fas fa-eye"></i> View
-                                        </button>
                                         <?php if ($status !== 'Closed'): ?>
                                         <button class="btn-action btn-update" onclick="updateMaterial(<?php echo $material['id']; ?>)" title="Update">
                                             <i class="fas fa-edit"></i> Update
@@ -1354,6 +874,204 @@ if (isset($_SESSION['message'])) {
             if (event.target == closeProdModal) {
                 closeProductionModal();
             }
+        }
+
+        // Export to Excel function
+        function exportToExcel() {
+            // Get table data
+            const table = document.querySelector('.recent-materials-table');
+            if (!table) {
+                alert('No data available to export');
+                return;
+            }
+
+            // Create workbook data
+            let excelData = [];
+            
+            // Add headers
+            const headers = ['Date & Time', 'Part Code', 'Part Name', 'In Quantity', 'Production Qty', 'Final Production', 'Scrap', 'Batch Number', 'Status'];
+            excelData.push(headers);
+            
+            // Get all table rows (only export visible/filtered rows)
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                // Skip rows that are hidden by filter
+                if (row.classList.contains('hidden-row')) {
+                    return;
+                }
+                
+                const cols = row.querySelectorAll('td');
+                if (cols.length > 0) {
+                    const rowData = [
+                        cols[0].textContent.trim().replace(/\s+/g, ' '),  // Date & Time
+                        cols[1].textContent.trim(),  // Part Code
+                        cols[2].textContent.trim(),  // Part Name (hidden but still in DOM)
+                        cols[3].textContent.trim().replace(/\s+/g, ' '),  // In Quantity
+                        cols[4].textContent.trim().replace(/\s+/g, ' '),  // Production Qty
+                        cols[5].textContent.trim().replace(/\s+/g, ' '),  // Final Production
+                        cols[6].textContent.trim(),  // Scrap
+                        cols[7].textContent.trim(),  // Batch Number
+                        cols[8].textContent.trim().replace(/\s+/g, ' ')   // Status
+                    ];
+                    excelData.push(rowData);
+                }
+            });
+            
+            // Convert to CSV format
+            let csvContent = '';
+            excelData.forEach(row => {
+                const csvRow = row.map(cell => {
+                    // Escape quotes and wrap in quotes if contains comma
+                    const cellStr = String(cell).replace(/"/g, '""');
+                    return `"${cellStr}"`;
+                }).join(',');
+                csvContent += csvRow + '\r\n';
+            });
+            
+            // Add BOM for UTF-8
+            const BOM = '\uFEFF';
+            csvContent = BOM + csvContent;
+            
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const filename = `Material_In_Report_${timestamp}.csv`;
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Filter function
+        function applyFilter() {
+            const dateFrom = document.getElementById('filter_date_from').value;
+            const dateTo = document.getElementById('filter_date_to').value;
+            const partCode = document.getElementById('filter_part_code').value.trim().toLowerCase();
+            const batchNumber = document.getElementById('filter_batch_number').value.trim().toLowerCase();
+            
+            if (!dateFrom && !dateTo && !partCode && !batchNumber) {
+                alert('Please select at least one filter option');
+                return;
+            }
+            
+            const table = document.querySelector('.recent-materials-table');
+            if (!table) return;
+            
+            const rows = table.querySelectorAll('tbody tr');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return;
+                
+                let showRow = true;
+                
+                // Filter by date
+                if (dateFrom || dateTo) {
+                    const dateCell = cells[0];
+                    const dateText = dateCell.textContent.trim();
+                    const dateParts = dateText.split('\n')[0].trim();
+                    const rowDate = parseDateFromCell(dateParts);
+                    
+                    if (!rowDate) {
+                        showRow = false;
+                    } else {
+                        if (dateFrom) {
+                            const fromDate = new Date(dateFrom);
+                            fromDate.setHours(0, 0, 0, 0);
+                            if (rowDate < fromDate) {
+                                showRow = false;
+                            }
+                        }
+                        
+                        if (dateTo && showRow) {
+                            const toDate = new Date(dateTo);
+                            toDate.setHours(23, 59, 59, 999);
+                            if (rowDate > toDate) {
+                                showRow = false;
+                            }
+                        }
+                    }
+                }
+                
+                // Filter by part code
+                if (partCode && showRow) {
+                    const partCodeCell = cells[1];
+                    const rowPartCode = partCodeCell.textContent.trim().toLowerCase();
+                    if (!rowPartCode.includes(partCode)) {
+                        showRow = false;
+                    }
+                }
+                
+                // Filter by batch number
+                if (batchNumber && showRow) {
+                    const batchCell = cells[7]; // Batch number column
+                    const rowBatchNumber = batchCell.textContent.trim().toLowerCase();
+                    if (!rowBatchNumber.includes(batchNumber)) {
+                        showRow = false;
+                    }
+                }
+                
+                if (showRow) {
+                    row.classList.remove('hidden-row');
+                    visibleCount++;
+                } else {
+                    row.classList.add('hidden-row');
+                }
+            });
+            
+            // Show message if no records found
+            if (visibleCount === 0) {
+                alert('No records found for the selected filters.');
+            }
+        }
+
+        // Helper function to parse date from cell text
+        function parseDateFromCell(dateText) {
+            try {
+                // Expected format: "DD MMM YYYY" (e.g., "24 Dec 2025")
+                const months = {
+                    'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+                    'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+                };
+                
+                const parts = dateText.trim().split(' ');
+                if (parts.length >= 3) {
+                    const day = parseInt(parts[0]);
+                    const month = months[parts[1]];
+                    const year = parseInt(parts[2]);
+                    
+                    if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+                        return new Date(year, month, day);
+                    }
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Reset filter function
+        function resetFilter() {
+            document.getElementById('filter_date_from').value = '';
+            document.getElementById('filter_date_to').value = '';
+            document.getElementById('filter_part_code').value = '';
+            document.getElementById('filter_batch_number').value = '';
+            
+            const table = document.querySelector('.recent-materials-table');
+            if (!table) return;
+            
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                row.classList.remove('hidden-row');
+            });
         }
     </script>
 </body>
