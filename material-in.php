@@ -250,7 +250,7 @@ if (isset($_SESSION['message'])) {
                 <i class="fas fa-plus-circle"></i>
                 <span>Material In</span>
             </a>
-            <a href="#" class="nav-item" onclick="alert('Production Records coming soon'); return false;">
+            <a href="line-production-report.php" class="nav-item">
                 <i class="fas fa-list"></i>
                 <span>Production Records</span>
             </a>
