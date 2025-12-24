@@ -72,20 +72,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tableName = $_POST['table_name'];
         $stageColumn = $_POST['stage_column'];
         $stageValue = trim($_POST['stage_value']);
+        $stageIndex = intval($_POST['stage_index']);
         
         if (!empty($stageValue)) {
-            // Insert stage data
-            $sql = "INSERT INTO [$tableName] (part_id, $stageColumn, created_at, updated_at) 
-                    VALUES (?, ?, GETDATE(), GETDATE())";
-            $params = array($partId, $stageValue);
-            $stmt = sqlsrv_query($conn, $sql, $params);
+            // Get stage metadata
+            $sql = "SELECT stage_names FROM stages_metadata WHERE part_id = ?";
+            $stmt = sqlsrv_query($conn, $sql, array($partId));
+            $metaData = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+            $stageNames = json_decode($metaData['stage_names'], true);
             
-            if ($stmt) {
-                $message = 'Stage data recorded successfully!';
-                $messageType = 'success';
+            if ($stageIndex === 0) {
+                // Stage 1: Check if this value already exists, if yes update, if no insert
+                $sql = "SELECT id FROM [$tableName] WHERE $stageColumn = ?";
+                $params = array($stageValue);
+                $stmt = sqlsrv_query($conn, $sql, $params);
+                
+                if ($stmt && $existingRow = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                    // Value already exists, update the timestamp
+                    $rowId = $existingRow['id'];
+                    $sql = "UPDATE [$tableName] SET updated_at = GETDATE() WHERE id = ?";
+                    $params = array($rowId);
+                    $stmt = sqlsrv_query($conn, $sql, $params);
+                    
+                    if ($stmt) {
+                        $message = 'Stage 1 data already exists - timestamp updated!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error updating stage data: ' . print_r(sqlsrv_errors(), true);
+                        $messageType = 'error';
+                    }
+                } else {
+                    // New value, insert new row
+                    $sql = "INSERT INTO [$tableName] (part_id, $stageColumn, created_at, updated_at) 
+                            VALUES (?, ?, GETDATE(), GETDATE())";
+                    $params = array($partId, $stageValue);
+                    $stmt = sqlsrv_query($conn, $sql, $params);
+                    
+                    if ($stmt) {
+                        $message = 'Stage 1 data recorded successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error recording stage data: ' . print_r(sqlsrv_errors(), true);
+                        $messageType = 'error';
+                    }
+                }
             } else {
-                $message = 'Error recording stage data: ' . print_r(sqlsrv_errors(), true);
-                $messageType = 'error';
+                // Stage 2+: Find matching row from PREVIOUS stage and update
+                // ONLY store data if previous stage has matching value
+                $previousStageName = $stageNames[$stageIndex - 1];
+                $previousStageNumber = $stageIndex; // Previous stage number (0-indexed + 1 = current index)
+                $previousStageColumn = 'stage_' . $previousStageNumber . '_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $previousStageName));
+                
+                // Check if a row exists with the scanned value in the previous stage
+                $sql = "SELECT id FROM [$tableName] WHERE $previousStageColumn = ?";
+                $params = array($stageValue);
+                $stmt = sqlsrv_query($conn, $sql, $params);
+                
+                if ($stmt && $existingRow = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                    // CONDITION MET: Row found in previous stage, now update current stage
+                    $rowId = $existingRow['id'];
+                    $sql = "UPDATE [$tableName] SET $stageColumn = ?, updated_at = GETDATE() WHERE id = ?";
+                    $params = array($stageValue, $rowId);
+                    $stmt = sqlsrv_query($conn, $sql, $params);
+                    
+                    if ($stmt) {
+                        $message = "✓ Stage " . ($stageIndex + 1) . " data recorded! Matched with Stage " . $previousStageNumber . ".";
+                        $messageType = 'success';
+                    } else {
+                        $message = '✗ Database error: ' . print_r(sqlsrv_errors(), true);
+                        $messageType = 'error';
+                    }
+                } else {
+                    // CONDITION NOT MET: No matching data in previous stage - DATA NOT STORED
+                    $message = '✗ Error: This item was not found in Stage ' . $previousStageNumber . '. Please scan it in Stage ' . $previousStageNumber . ' first. Value: ' . htmlspecialchars($stageValue);
+                    $messageType = 'error';
+                }
+            }
+            
+            // Keep the part and stage selected for continuous scanning
+            $sql = "SELECT id, part_code, part_name FROM parts WHERE id = ?";
+            $stmt = sqlsrv_query($conn, $sql, array($partId));
+            
+            if ($stmt && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                $selectedPart = $row;
+                $selectedStageIndex = $stageIndex;
+                
+                $sql = "SELECT table_name, stage_names FROM stages_metadata WHERE part_id = ?";
+                $stmt = sqlsrv_query($conn, $sql, array($partId));
+                
+                if ($stmt && $metaRow = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                    $stageMetadata = $metaRow;
+                    $stageMetadata['stage_names'] = json_decode($metaRow['stage_names'], true);
+                }
             }
         } else {
             $message = 'Please enter a value';
@@ -491,6 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="hidden" name="part_id" value="<?php echo $selectedPart['id']; ?>">
                     <input type="hidden" name="table_name" value="<?php echo htmlspecialchars($stageMetadata['table_name']); ?>">
                     <input type="hidden" name="stage_column" value="<?php echo $stageColumn; ?>">
+                    <input type="hidden" name="stage_index" value="<?php echo $selectedStageIndex; ?>">
                     
                     <div class="form-group">
                         <label for="stage_value">Step 3: Scan or Enter Data</label>
@@ -505,6 +584,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" class="btn btn-success">✓ Record Data</button>
                 </form>
             </div>
+
+            <script>
+                // Auto-focus and clear input for continuous scanning
+                document.addEventListener('DOMContentLoaded', function() {
+                    const input = document.getElementById('stage_value');
+                    if (input) {
+                        // Clear the input field on page load (after successful submission)
+                        input.value = '';
+                        // Focus the input for the next scan
+                        input.focus();
+                        
+                        // Optional: Select all text when clicking (for easy replacement)
+                        input.addEventListener('click', function() {
+                            this.select();
+                        });
+                    }
+                });
+            </script>
 
             <div class="divider"></div>
 
