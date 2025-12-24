@@ -110,7 +110,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </form>
         
         <div class="login-footer">
-            <a href="forgot-password.php">Forgot Password?</a>
+            <a href="line-login.php" style="color: #3b82f6; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+                <i class="fas fa-industry"></i>
+                Production Line Login
+            </a>
         </div>
     </div>
 </body>

@@ -107,6 +107,83 @@ END
 ";
 executeQuery($conn, $sql, "Create Stages Metadata Table");
 
+// 6. Create Material In Table
+$sql = "
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='material_in' AND xtype='U')
+BEGIN
+    CREATE TABLE material_in (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        line_id INT NOT NULL,
+        part_id INT NOT NULL,
+        part_code NVARCHAR(50) NOT NULL,
+        part_name NVARCHAR(255) NOT NULL,
+        in_quantity INT NOT NULL,
+        in_units NVARCHAR(20) NOT NULL,
+        production_quantity INT NOT NULL,
+        production_units NVARCHAR(20) NOT NULL,
+        received_date DATETIME NOT NULL,
+        batch_number NVARCHAR(100) NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT FK_material_in_line FOREIGN KEY (line_id) REFERENCES lines(id),
+        CONSTRAINT FK_material_in_part FOREIGN KEY (part_id) REFERENCES parts(id)
+    )
+END
+";
+executeQuery($conn, $sql, "Create Material In Table");
+
+// 7. Create Material In Indexes
+$sql = "
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_material_in_line_id' AND object_id = OBJECT_ID('material_in'))
+BEGIN
+    CREATE INDEX IX_material_in_line_id ON material_in(line_id)
+END
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_material_in_part_id' AND object_id = OBJECT_ID('material_in'))
+BEGIN
+    CREATE INDEX IX_material_in_part_id ON material_in(part_id)
+END
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_material_in_received_date' AND object_id = OBJECT_ID('material_in'))
+BEGIN
+    CREATE INDEX IX_material_in_received_date ON material_in(received_date)
+END
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_material_in_batch_number' AND object_id = OBJECT_ID('material_in'))
+BEGIN
+    CREATE INDEX IX_material_in_batch_number ON material_in(batch_number)
+END
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_material_in_created_at' AND object_id = OBJECT_ID('material_in'))
+BEGIN
+    CREATE INDEX IX_material_in_created_at ON material_in(created_at)
+END
+";
+executeQuery($conn, $sql, "Create Material In Indexes");
+
+// 8. Add Production Closure Columns
+$sql = "
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('material_in') AND name = 'final_production_quantity')
+BEGIN
+    ALTER TABLE material_in ADD final_production_quantity INT NULL
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('material_in') AND name = 'scrap_quantity')
+BEGIN
+    ALTER TABLE material_in ADD scrap_quantity INT NULL
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('material_in') AND name = 'production_status')
+BEGIN
+    ALTER TABLE material_in ADD production_status NVARCHAR(20) NOT NULL DEFAULT 'Open'
+END
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('material_in') AND name = 'closed_at')
+BEGIN
+    ALTER TABLE material_in ADD closed_at DATETIME NULL
+END
+";
+executeQuery($conn, $sql, "Add Production Closure Columns");
+
 // Close connection
 closeConnection($conn);
 ?>
@@ -272,7 +349,7 @@ closeConnection($conn);
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #666; font-size: 12px; text-align: center;">
             <p><strong>Database:</strong> production_viros</p>
             <p><strong>Server:</strong> MSI\SQLEXPRESS</p>
-            <p><strong>Tables Created:</strong> users</p>
+            <p><strong>Tables Created:</strong> users, lines, parts, stages_metadata, material_in</p>
         </div>
     </div>
 </body>
