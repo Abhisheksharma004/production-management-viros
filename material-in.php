@@ -254,10 +254,6 @@ if (isset($_SESSION['message'])) {
                 <i class="fas fa-list"></i>
                 <span>Production Records</span>
             </a>
-            <a href="#" class="nav-item" onclick="alert('Daily Report coming soon'); return false;">
-                <i class="fas fa-chart-bar"></i>
-                <span>Daily Report</span>
-            </a>
         </nav>
     </div>
 
