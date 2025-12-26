@@ -24,6 +24,10 @@
             <i class="fas fa-tasks"></i>
             <span>Stages Management</span>
         </a>
+        <a href="admin-material-in.php" class="nav-item <?php echo ($activePage == 'material-in') ? 'active' : ''; ?>">
+            <i class="fas fa-inbox"></i>
+            <span>Material In</span>
+        </a>
         <a href="production-report.php" class="nav-item <?php echo ($activePage == 'production-report') ? 'active' : ''; ?>">
             <i class="fas fa-chart-line"></i>
             <span>Production Report</span>
