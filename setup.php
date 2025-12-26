@@ -37,12 +37,28 @@ BEGIN
     CREATE TABLE users (
         id INT IDENTITY(1,1) PRIMARY KEY,
         username NVARCHAR(100) NOT NULL,
+        full_name NVARCHAR(200),
         email NVARCHAR(100) NOT NULL UNIQUE,
+        phone NVARCHAR(20),
         password NVARCHAR(255) NOT NULL,
         role NVARCHAR(50) DEFAULT 'user',
         created_at DATETIME DEFAULT GETDATE(),
         updated_at DATETIME DEFAULT GETDATE()
     )
+END
+ELSE
+BEGIN
+    -- Add full_name column if it doesn't exist
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('users') AND name = 'full_name')
+    BEGIN
+        ALTER TABLE users ADD full_name NVARCHAR(200)
+    END
+    
+    -- Add phone column if it doesn't exist
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('users') AND name = 'phone')
+    BEGIN
+        ALTER TABLE users ADD phone NVARCHAR(20)
+    END
 END
 ";
 executeQuery($conn, $sql, "Create Users Table");
