@@ -65,10 +65,19 @@ if (isset($_POST['summary'])) {
     $summary = json_decode($_POST['summary'], true);
     fputcsv($output, []); // Empty row
     fputcsv($output, ['Production Summary']);
-    fputcsv($output, ['Total Items', $summary['total']]);
-    fputcsv($output, ['Completed Items', $summary['completed']]);
-    fputcsv($output, ['In Progress', $summary['inProgress']]);
-    fputcsv($output, ['Completion Rate', $summary['completionRate']]);
+    fputcsv($output, ['Total Items', $summary['total'] ?? 0]);
+    
+    if (isset($summary['completed'])) {
+        fputcsv($output, ['Completed Items', $summary['completed']]);
+    }
+    
+    if (isset($summary['inProgress'])) {
+        fputcsv($output, ['In Progress', $summary['inProgress']]);
+    }
+    
+    if (isset($summary['completionRate'])) {
+        fputcsv($output, ['Completion Rate', $summary['completionRate']]);
+    }
 }
 
 fclose($output);
